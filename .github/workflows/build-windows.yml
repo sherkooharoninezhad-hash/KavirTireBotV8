@@ -1,0 +1,42 @@
+name: Build Kavir Tire Bot (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pyinstaller==6.15.0
+
+      - name: Install bundled Chromium
+        shell: pwsh
+        run: |
+          $env:PLAYWRIGHT_BROWSERS_PATH = "${{ github.workspace }}\pw-browsers"
+          python -m playwright install chromium
+
+      - name: Build application
+        shell: pwsh
+        run: |
+          $env:PLAYWRIGHT_BROWSERS_PATH = "${{ github.workspace }}\pw-browsers"
+          pyinstaller --noconfirm --clean --onedir --windowed --name KavirTireBot --collect-all playwright kavir_tire_bot_24h.py
+          Copy-Item -Recurse -Force pw-browsers dist\KavirTireBot\pw-browsers
+          Compress-Archive -Path dist\KavirTireBot -DestinationPath KavirTireBot-Windows.zip -Force
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: KavirTireBot-Windows
+          path: KavirTireBot-Windows.zip
+          if-no-files-found: error
